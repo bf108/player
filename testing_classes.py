@@ -6,27 +6,18 @@ import re
 import traceback
 
 class Player:
-    '''
-    class to capture player attributes
+    '''Class to collect tournament results for a specific player'''
 
-    Attributes:
-        url - str
-            url to player profile page on tournament software
-
-    '''
-
-    def __init__(self, url, name, tsid, player_ratings_df, df_tour_res):
+    def __init__(self, url, name, player_ratings_df, df_tour_res):
         '''
         instantiates player object with profile url
         :param url: str - profile url from tournament software
-                name: str - player name
-                tsid: str - unique id of player
-                player_ratings_df - DataFrame -
-                df_tour_res - DataFrame - Schema
+                name: str - Player name
+                player_ratings_df: DataFrame - Collected by scraping ranking tables
+                df_tour_res: DataFrame - Schema: tour_player_id, tour_ref, tsid
         '''
         self.url = url
         self.name = name
-        self.tsid = tsid
         self.player_ratings_df = player_ratings_df
         self.df_tour_res = df_tour_res
 
@@ -43,7 +34,7 @@ class Player:
             self.url = self.url[:-1]
 
         self.url += f'/tournaments/{year}'
-        tour = TournamentResults(self.url, self.tsid, self.player_ratings_df, self.df_tour_res)
+        tour = TournamentResults(self.url, self.player_ratings_df, self.df_tour_res)
         if tour.check_if_results_exist():
             ply_tour_res = tour.collect_all_results()
             self.df_tour_res = tour.get_df_tour_res()
@@ -58,16 +49,15 @@ class Match:
     Class to represent a match
     TO DO - HANDLE FOR BYE'S OR MATCHES CALLED OFF
     '''
-    def __init__(self, tag, tsid, player_ratings_df, df_tour_res):
+    def __init__(self, tag, player_ratings_df, df_tour_res):
         '''
         initialise a match object
         :param
             tag: bs4.tag - li class=match-group__item
-            name: str - name of player searching for
-            tsid; str - unique id of player searching on
+            player_ratings_df: DataFrame - Collected by scraping ranking tables
+            df_tour_res: DataFrame - Schema: tour_player_id, tour_ref, tsid
         '''
         self.tag = tag
-        self.tsid = tsid
         self.player_ratings_df = player_ratings_df
         self.df_tour_res = df_tour_res
 
@@ -207,7 +197,7 @@ class Match:
             # print(f'winning team p{num + 1}: {player.text.strip()}')
             #Getting TSID for player
             win_href = 'https://be.tournamentsoftware.com' + player.find('a')['href']
-            tp_id = TourPlayerId(win_href, self.df_tour_res, self.player_ratings_df)
+            tp_id = TourPlayerId(win_href, self.player_ratings_df, self.df_tour_res)
             match_data_dict[f'winning_team_p{num + 1}_tsid'] = tp_id.get_tsid()
             #Update tournament result dataframe - used to quickly allocate TSID to players
             self.df_tour_res = tp_id.get_tour_ref_df()
@@ -218,7 +208,7 @@ class Match:
             # print(f'losing team p{num + 1}: {player.text.strip()}')
             #Getting TSID for player
             win_href = 'https://be.tournamentsoftware.com' + player.find('a')['href']
-            tp_id = TourPlayerId(win_href, self.df_tour_res, self.player_ratings_df)
+            tp_id = TourPlayerId(win_href, self.player_ratings_df, self.df_tour_res)
             match_data_dict[f'losing_team_p{num + 1}_tsid'] = tp_id.get_tsid()
             #Update tournament result dataframe - used to quickly allocate TSID to players
             self.df_tour_res = tp_id.get_tour_ref_df()
@@ -230,13 +220,13 @@ class Match:
 
 
 class TournamentResults:
-    def __init__(self, url, tsid, player_ratings_df, df_tour_res):
+    def __init__(self, url, player_ratings_df, df_tour_res):
         '''
         instantiate TournamentResults class
         :param
             url: str - url for player tournament stats
-            name: str - player which you are searching for tournament results for
-            tsid: str - unique id code for player searching on
+            player_ratings_df: DataFrame - Collected by scraping ranking tables
+            df_tour_res: DataFrame - Schema: tour_player_id, tour_ref, tsid
         '''
         self.cookies = {'ASP.NET_SessionId': 'samot0pr3nnbuav0vs3l1oop',
                        'st': 'l=2057&exp=44802.7753505324&c=1&cp=20',
@@ -245,7 +235,6 @@ class TournamentResults:
                        }
         self.results = []
         self.url = url
-        self.tsid = tsid
         self.soup = bs(requests.get(self.url, cookies=self.cookies).content, 'html.parser')
         self.player_ratings_df = player_ratings_df
         self.df_tour_res = df_tour_res
@@ -380,7 +369,7 @@ class TournamentResults:
                     draw_title_id_dict = self.get_draw_title_id(tup)
                     for match in self.get_match_list(tup):
                         try:
-                            m1 = Match(match, self.tsid, self.player_ratings_df, self.df_tour_res)
+                            m1 = Match(match, self.player_ratings_df, self.df_tour_res)
                             if m1.check_for_no_match():
                                 pass
                             else:
@@ -407,7 +396,7 @@ class TourPlayerId:
     '''
     class used to get player TSID from href on player name within match in tournament
     '''
-    def __init__(self, url, df, player_ratings_df):
+    def __init__(self, url, player_ratings_df, df_tour_res):
         '''
         instantiate TourPlayerId class
         :param url: str - url which links to player tournament stats
@@ -415,8 +404,9 @@ class TourPlayerId:
         :param player_ratings_df - DataFrame - DataFrame with player ranking stats
         '''
         self.url = url
-        self.df = df
         self.player_ratings_df = player_ratings_df
+        self.df_tour_res = df_tour_res
+
 
     def _set_tour_player_ref(self):
         '''extract tournament_id and player_tournament_id from url'''
@@ -426,10 +416,10 @@ class TourPlayerId:
         '''get TSID for player: Either from df or by extracting it from html'''
         #set essential variables
         self._set_tour_player_ref()
-        if len(self.df.loc[((self.df['tour_ref'] == self.tour_ref) &
-                            (self.df['tour_player_id'] == self.tour_player_id)), 'tsid']) > 0:
-            tsid = self.df.loc[((self.df['tour_ref'] == self.tour_ref) &
-                                (self.df['tour_player_id'] == self.tour_player_id)), 'tsid'].values[0]
+        if len(self.df_tour_res.loc[((self.df_tour_res['tour_ref'] == self.tour_ref) &
+                            (self.df_tour_res['tour_player_id'] == self.tour_player_id)), 'tsid']) > 0:
+            tsid = self.df_tour_res.loc[((self.df_tour_res['tour_ref'] == self.tour_ref) &
+                                (self.df_tour_res['tour_player_id'] == self.tour_player_id)), 'tsid'].values[0]
         else:
 
             tsid = self.scrape_tsid()
@@ -440,7 +430,7 @@ class TourPlayerId:
     def update_tour_df(self,tsid):
         '''update DataFrame storing tournament ref and tsid mapping'''
         row = pd.DataFrame.from_dict({'tsid':[tsid],'tour_ref':[self.tour_ref],'tour_player_id':[self.tour_player_id]})
-        self.df = self.df.append(row,ignore_index=True)
+        self.df_tour_res = self.df_tour_res.append(row,ignore_index=True)
 
     def scrape_tsid(self):
         '''if tsid isn't available in look up table, then collect via scraping'''
@@ -476,6 +466,6 @@ class TourPlayerId:
 
     def get_tour_ref_df(self):
         '''Return the results df - table of tour_ref, player_ref, player_id'''
-        return self.df
+        return self.df_tour_res
 
 
