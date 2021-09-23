@@ -43,7 +43,7 @@ class Player:
             self.url = self.url[:-1]
 
         self.url += f'/tournaments/{year}'
-        tour = TournamentResults(self.url, self.name, self.tsid, self.player_ratings_df, self.df_tour_res)
+        tour = TournamentResults(self.url, self.tsid, self.player_ratings_df, self.df_tour_res)
         if tour.check_if_results_exist():
             ply_tour_res = tour.collect_all_results()
             self.df_tour_res = tour.get_df_tour_res()
@@ -58,7 +58,7 @@ class Match:
     Class to represent a match
     TO DO - HANDLE FOR BYE'S OR MATCHES CALLED OFF
     '''
-    def __init__(self, tag, name, tsid, player_ratings_df, df_tour_res):
+    def __init__(self, tag, tsid, player_ratings_df, df_tour_res):
         '''
         initialise a match object
         :param
@@ -67,7 +67,6 @@ class Match:
             tsid; str - unique id of player searching on
         '''
         self.tag = tag
-        self.name = name
         self.tsid = tsid
         self.player_ratings_df = player_ratings_df
         self.df_tour_res = df_tour_res
@@ -231,7 +230,7 @@ class Match:
 
 
 class TournamentResults:
-    def __init__(self, url, name, tsid, player_ratings_df, df_tour_res):
+    def __init__(self, url, tsid, player_ratings_df, df_tour_res):
         '''
         instantiate TournamentResults class
         :param
@@ -246,7 +245,6 @@ class TournamentResults:
                        }
         self.results = []
         self.url = url
-        self.name = name
         self.tsid = tsid
         self.soup = bs(requests.get(self.url, cookies=self.cookies).content, 'html.parser')
         self.player_ratings_df = player_ratings_df
@@ -382,7 +380,7 @@ class TournamentResults:
                     draw_title_id_dict = self.get_draw_title_id(tup)
                     for match in self.get_match_list(tup):
                         try:
-                            m1 = Match(match, self.name, self.tsid, self.player_ratings_df, self.df_tour_res)
+                            m1 = Match(match, self.tsid, self.player_ratings_df, self.df_tour_res)
                             if m1.check_for_no_match():
                                 pass
                             else:
