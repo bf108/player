@@ -19,18 +19,15 @@ def main():
     df_tour_res = pd.DataFrame.from_dict({'tsid':[],'tour_ref':[],'tour_player_id':[]})
     df_tour_res = df_tour_res.astype('object')
     for row in df_player_table.iterrows():
-        if row[0] < 50:
-            print(f'Collecting Results for {row[1].Player}, player {row[0]+1} of {total}')
-            name, url, tsid = row[1].loc[['Player','Profile_url','tsid']]
-            ply = Player(url, name, tsid, df_player_table, df_tour_res)
-            #list of dictionaries
-            ply_results = ply.get_tournament_results(2019)
-            all_results += ply_results
-            #Update tour results dataframe
-            df_tour_res = ply.get_df_tour_res()
-            df_tour_res.drop_duplicates(inplace=True)
-        else:
-            break
+        print(f'Collecting Results for {row[1].Player}, player {row[0]+1} of {total}')
+        name, url = row[1].loc[['Player','Profile_url']]
+        ply = Player(url, name, df_player_table, df_tour_res)
+        #list of dictionaries
+        ply_results = ply.get_tournament_results(2019)
+        all_results += ply_results
+        #Update tour results dataframe
+        df_tour_res = ply.get_df_tour_res()
+        df_tour_res.drop_duplicates(inplace=True)
 
     df_all_results = pd.DataFrame.from_dict(all_results)
     df_all_results.to_csv('/home/cdsw/player_tournament_results_2019.csv',index=False)
