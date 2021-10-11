@@ -1,9 +1,5 @@
 import requests
 from bs4 import BeautifulSoup as bs
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
-import numpy as np
 import pandas as pd
 import re
 
@@ -279,6 +275,7 @@ def main():
     df_rank_results['region'] = df_rank_results['Profile_url'].apply(lambda x: getRegion(x, cookies))
     print('Save Results')
     df_rank_results.to_csv('player_rankings_2019.csv',index=False)
+
 
 if __name__=='__main__':
     main()
