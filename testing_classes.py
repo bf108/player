@@ -5,218 +5,8 @@ import pandas as pd
 import re
 import traceback
 
-class Player:
-    '''Class to collect tournament results for a specific player'''
-
-    def __init__(self, url, name, player_ratings_df, df_tour_res):
-        '''
-        instantiates player object with profile url
-        :param url: str - profile url from tournament software
-                name: str - Player name
-                player_ratings_df: DataFrame - Collected by scraping ranking tables
-                df_tour_res: DataFrame - Schema: tour_player_id, tour_ref, tsid
-        '''
-        self.url = url
-        self.name = name
-        self.player_ratings_df = player_ratings_df
-        self.df_tour_res = df_tour_res
-
-    def get_df_tour_res(self):
-        return self.df_tour_res
-
-    def get_tournament_results(self,year):
-        '''
-        Get results for all tournament matches in given year
-        :param year: int - year in format YYYY e.g 2019
-        :return: pd.DataFrame - results of all matches within given year
-        '''
-        if self.url[-1] == '/':
-            self.url = self.url[:-1]
-
-        self.url += f'/tournaments/{year}'
-        tour = TournamentResults(self.url, self.player_ratings_df, self.df_tour_res)
-        if tour.check_if_results_exist():
-            ply_tour_res = tour.collect_all_results()
-            self.df_tour_res = tour.get_df_tour_res()
-            return ply_tour_res
-        else:
-            print(f'No results for: {self.name} in {year}')
-            return []
 
 
-class Match:
-    '''
-    Class to represent a match
-    TO DO - HANDLE FOR BYE'S OR MATCHES CALLED OFF
-    '''
-    def __init__(self, tag, player_ratings_df, df_tour_res):
-        '''
-        initialise a match object
-        :param
-            tag: bs4.tag - li class=match-group__item
-            player_ratings_df: DataFrame - Collected by scraping ranking tables
-            df_tour_res: DataFrame - Schema: tour_player_id, tour_ref, tsid
-        '''
-        self.tag = tag
-        self.player_ratings_df = player_ratings_df
-        self.df_tour_res = df_tour_res
-
-    def check_for_no_match(self):
-        '''
-        Helper method to check if a match was played.
-        :return: bool : True if no match, False if match played
-        '''
-        no_match = None
-        try:
-            no_match = self.tag.find('span', class_='tag--warning tag match__message').text.strip()
-        except:
-            pass
-
-        if no_match:
-            return True
-        else:
-            return False
-
-
-    def get_match_duration(self):
-        '''
-        extract match duration if available, else return n/a
-        :return: match_duration (str) - duration of match if available
-        '''
-        try:
-            match_duration = self.tag.find('div', class_='match__header-aside').text.strip()
-            #Remove Match stats text if included
-            if re.search('(?i)Match stats', match_duration):
-                match_duration = match_duration.split('Match stats')[-1].strip()
-        except Exception as e:
-            match_duration = 'n/a'
-        return match_duration
-
-
-    def get_match_id(self):
-        '''
-        extract match_id from href if available
-        :return: match_id (str) - match_id if available
-        '''
-        try:
-            match_id = self.tag.find('div', class_='match__header-aside').find('a')['href'].split('match=')[-1]
-        except Exception as e:
-            match_id = 'n/a'
-        return match_id
-
-
-    def get_match_scores_list(self,css_class_name):
-        '''
-        helper function to collect scores
-        args:
-           css_class_name  - str - Name of css class to select
-        '''
-        try:
-            return [int(res.text.strip()) for res in self.tag.find(lambda tag: tag.name == 'div' and
-                    tag['class'] == css_class_name.split()).find('div', class_='match__result')
-                .find_all('li', class_='points__cell')]
-        except Exception as e:
-            return 'n/a'
-
-
-    def get_match_date(self):
-        try:
-            match_date = self.tag.find('div', {'class': 'match__footer'}) \
-                .find('svg', {'class': 'icon-clock nav-link__prefix'}).find_next_sibling().text
-        except:
-            match_date = self.tag.find('div', {'class': 'match__footer'}) \
-                .find('span', {'class': 'nav-link__value'}).text
-        return match_date
-
-
-    def get_court(self):
-        try:
-            court = self.tag.find('div', {'class': 'match__footer'}) \
-                .find_all('li', {'class': 'match__footer-list-item'})[-1].text.strip()
-        except:
-            court = 'n/a'
-        return court
-
-
-    def get_df_tour_res(self):
-        '''
-        Helper function to get DataFrame with tour results to map to players
-        :return:
-            df_tour_res - DataFrame
-        '''
-        return self.df_tour_res
-
-
-    def get_match_stats(self):
-        '''
-        TO DO - HANDLE FOR BYE'S OR MATCHES CALLED OFF
-
-        :return: match data/results - dict - key/values
-
-        {'match_title': str,
-        'match_id':str,
-        'match_duration': str,
-        'match_date':str,
-        'match_court': match_court,
-        'winning_team_p1': str,
-        'winning_team_p2': str,
-        'losing_team_p1': str,
-        'losing_team_p2': str,
-        'winning_team_scores': list,
-        'losing_team_scores': list}
-
-        '''
-        match_title = self.tag.find('div', class_='match__header-title').text.strip()
-        match_duration = self.get_match_duration()
-        match_id = self.get_match_id()
-        match_date = self.get_match_date()
-        match_court = self.get_court()
-
-        # Set empyt player dict
-        match_data_dict = {
-            'match_title': match_title,
-            'match_id':match_id,
-            'match_duration': match_duration,
-            'match_date': match_date,
-            'match_court': match_court,
-            'winning_team_p1': np.nan,
-            'winning_team_p1_tsid': np.nan,
-            'winning_team_p2': np.nan,
-            'winning_team_p2_tsid': np.nan,
-            'losing_team_p1': np.nan,
-            'losing_team_p1_tsid': np.nan,
-            'losing_team_p2': np.nan,
-            'losing_team_p2_tsid': np.nan,
-            'winning_team_scores': np.nan,
-            'losing_team_scores': np.nan
-        }
-
-        for num, player in enumerate(self.tag.find('div',class_='match__row has-won')
-                                             .find('div','match__row-title').findChildren(recursive=False)):
-            match_data_dict[f'winning_team_p{num + 1}'] = player.text.strip()
-            # print(f'winning team p{num + 1}: {player.text.strip()}')
-            #Getting TSID for player
-            win_href = 'https://be.tournamentsoftware.com' + player.find('a')['href']
-            tp_id = TourPlayerId(win_href, self.player_ratings_df, self.df_tour_res)
-            match_data_dict[f'winning_team_p{num + 1}_tsid'] = tp_id.get_tsid()
-            #Update tournament result dataframe - used to quickly allocate TSID to players
-            self.df_tour_res = tp_id.get_tour_ref_df()
-
-        for num, player in enumerate(self.tag.find(lambda tag: tag.name == 'div' and tag['class'] == 'match__row '.split())
-                                             .find('div','match__row-title').findChildren(recursive=False)):
-            match_data_dict[f'losing_team_p{num + 1}'] = player.text.strip()
-            # print(f'losing team p{num + 1}: {player.text.strip()}')
-            #Getting TSID for player
-            win_href = 'https://be.tournamentsoftware.com' + player.find('a')['href']
-            tp_id = TourPlayerId(win_href, self.player_ratings_df, self.df_tour_res)
-            match_data_dict[f'losing_team_p{num + 1}_tsid'] = tp_id.get_tsid()
-            #Update tournament result dataframe - used to quickly allocate TSID to players
-            self.df_tour_res = tp_id.get_tour_ref_df()
-
-        for lab, val in zip(['winning_team_scores','losing_team_scores'],['match__row has-won','match__row ']):
-            match_data_dict[lab] = self.get_match_scores_list(val)
-
-        return match_data_dict
 
 
 class TournamentResults:
@@ -395,6 +185,9 @@ class TournamentResults:
 class TourPlayerId:
     '''
     class used to get player TSID from href on player name within match in tournament
+
+    TODO - CONSIDER INCORPORATING LOGGING TO RECORD WHICH URLS FAILED TO PROVIDE TSID
+
     '''
     def __init__(self, url, player_ratings_df, df_tour_res):
         '''
@@ -412,6 +205,7 @@ class TourPlayerId:
         '''extract tournament_id and player_tournament_id from url'''
         self.tour_ref, self.tour_player_id = self.url.split('player.aspx?id=')[1].split('&player=')
 
+
     def get_tsid(self):
         '''get TSID for player: Either from df or by extracting it from html'''
         #set essential variables
@@ -427,10 +221,12 @@ class TourPlayerId:
 
         return tsid
 
+
     def update_tour_df(self,tsid):
         '''update DataFrame storing tournament ref and tsid mapping'''
         row = pd.DataFrame.from_dict({'tsid':[tsid],'tour_ref':[self.tour_ref],'tour_player_id':[self.tour_player_id]})
         self.df_tour_res = self.df_tour_res.append(row,ignore_index=True)
+
 
     def scrape_tsid(self):
         '''if tsid isn't available in look up table, then collect via scraping'''
@@ -459,10 +255,11 @@ class TourPlayerId:
                 #There are cases where the player doesn't have a profile on tournament software e.g
                 'https://be.tournamentsoftware.com/sport/player.aspx?id=716287F7-461C-4818-B699-BCAE526CCB0D&player=2531'
                 print(f'TSID not found for url: {self.url}')
-                print(traceback.format_exc())
+                # print(traceback.format_exc())
                 tsid = np.nan
 
         return tsid
+
 
     def get_tour_ref_df(self):
         '''Return the results df - table of tour_ref, player_ref, player_id'''

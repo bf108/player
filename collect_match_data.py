@@ -30,8 +30,8 @@ def main():
         df_tour_res.drop_duplicates(inplace=True)
 
     df_all_results = pd.DataFrame.from_dict(all_results)
-    df_all_results.to_csv('/home/cdsw/player_tournament_results_2019.csv', index=False)
-    df_tour_res.to_csv('/home/cdsw/player_tournament_results_references_2019.csv', index=False)
+    df_all_results.to_csv('/home/cdsw/player_tournament_results_2019_.csv', index=False)
+    df_tour_res.to_csv('/home/cdsw/player_tournament_results_references_2019_.csv', index=False)
 
 
 if __name__ == '__main__':
