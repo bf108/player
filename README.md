@@ -9,7 +9,7 @@
 Ranking data collected from 1st week in 2019 for the following groups:
 
 
-|Group| Acronym |	Unique Players Count |
+|Group| Accronym |	Unique Players Count |
 |---|---|---|
 |Mens singles	| MS	    |1679 |
 |womens singles |	WS	  |806 |
