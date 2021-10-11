@@ -82,4 +82,11 @@ This task utilises the helper Classes defined above Player, TournamentResults, M
 
 The script to perform this is `collect_match_data.py`
 
+## Uploading to Firestore DB
+This is performed with `access_firebase_db.py`
+
+Access to the db is gained by accessing credentials saved in json file and initializing app. The results are uploaded in batches of 500.
+
+- Collection (Table) for Rankings is **Player_Rankings**
+- Collection (Table) for Tournament Results is **Player_Tournament_Results**
 
