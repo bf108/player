@@ -77,7 +77,7 @@ The Match Class is used to collect data from an individual match within a tourna
 
 Where matches are called off or byes are awarded no results were recorded.
 
-### Scrapping all the tournament results
+### Scraping all the tournament results
 This task utilises the helper Classes defined above Player, TournamentResults, Match, TournamentPlayerId to iterate through the player rankings table and collect all tournment results from 2019.
 
 The script to perform this is `collect_match_data.py`
